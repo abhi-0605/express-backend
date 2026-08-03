@@ -138,8 +138,13 @@ PORT=5000
 NODE_ENV=development
 
 # MongoDB Configuration
-MONGODB_URI=mongodb://localhost:27017/myapp
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/myappdb
 DB_NAME=myapp
+
+# DNS Configuration
+DNS_SERVERS=8.8.8.8,8.8.4.4
+PRIMARY_DNS=8.8.8.8
+SECONDARY_DNS=8.8.4.4
 
 # JWT Configuration
 JWT_SECRET=your-secret-key-change-this-in-production
@@ -334,25 +339,42 @@ module.exports = router;
         routes
     );
 
-    const dbConfig = `const mongoose = require('mongoose');
+ 
+
+const dbConfig = `const mongoose = require('mongoose');
+const dns = require('dns');
+
+// Set DNS servers
+const dnsServers = (process.env.DNS_SERVERS || '8.8.8.8,8.8.4.4').split(',');
+dns.setServers(dnsServers);
 
 const connectDB = async () => {
   try {
+    console.log(\`📡 Using DNS servers: \${dnsServers.join(', ')}\`);
+    
     const conn = await mongoose.connect(process.env.MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
     });
 
     console.log(\`MongoDB Connected: \${conn.connection.host}\`);
     return conn;
   } catch (error) {
-    console.error('MongoDB Connection Error:', error.message);
-    process.exit(1);
+    console.error(' MongoDB Connection Error:', error.message);
+    
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    } else {
+      console.warn('⚠ Warning: Running without MongoDB connection');
+    }
   }
 };
 
 module.exports = connectDB;
 `;
+
     fs.writeFileSync(
         path.join(projectPath, 'src/config/db.js'),
         dbConfig
@@ -413,5 +435,5 @@ process.on('unhandledRejection', (err) => {
     server
   );
 
-  console.log(chalk.green('✓ Route and config files created'));
+  console.log(chalk.green('Route and config files created'));
 }

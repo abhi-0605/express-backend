@@ -1,19 +1,32 @@
 {
-  "name": "express-backend",
+  "name": "my-express-cli-abhi0605",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "CLI tool to scaffold Express.js backend projects with MongoDB, middleware, and common setup",
+  "main": "bin/cli.js",
+  "bin": {
+    "create-express-backend": "./bin/cli.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
+  "keywords": [
+    "express",
+    "nodejs",
+    "backend",
+    "scaffold",
+    "cli",
+    "mongodb"
+  ],
+  "author": "abhi0605",
+  "license": "MIT",
+  "preferGlobal": true,
+  "engines": {
+    "node": ">=14.0.0"
+  },
   "dependencies": {
-    "chalk": "^6.0.0",
-    "commander": "^15.0.0",
-    "fs-extra": "^11.4.0",
-    "inquirer": "^14.0.2"
+    "chalk": "^4.1.2",
+    "commander": "^11.0.0",
+    "fs-extra": "^11.1.0",
+    "inquirer": "^8.2.5"
   }
-}
+}   
