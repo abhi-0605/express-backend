@@ -1,6 +1,6 @@
 {
   "name": "backend-scaffold-cli",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "CLI tool to scaffold Express.js backend projects with MongoDB, middleware, and common setup",
   "main": "bin/cli.js",
   "bin": {
@@ -18,7 +18,7 @@
     "mongodb"
   ],
   "author": "abhi0605",
-   "repository": {
+  "repository": {
     "type": "git",
     "url": "https://github.com/abhi-0605/express-backend.git"
   },
