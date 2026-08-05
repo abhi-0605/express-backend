@@ -35,7 +35,7 @@ npm start
 ### Global Installation
 ```bash
 npm install -g backend-scaffold-cli
-backend-scaffold-cli my-app
+create-express-backend my-app
 ```
 
 ## Usage

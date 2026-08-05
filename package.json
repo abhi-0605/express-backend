@@ -18,6 +18,10 @@
     "mongodb"
   ],
   "author": "abhi0605",
+   "repository": {
+    "type": "git",
+    "url": "https://github.com/abhi-0605/express-backend.git"
+  },
   "license": "MIT",
   "preferGlobal": true,
   "engines": {
