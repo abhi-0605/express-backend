@@ -1,6 +1,6 @@
 {
   "name": "backend-scaffold-cli",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "CLI tool to scaffold Express.js backend projects with MongoDB, middleware, and common setup",
   "main": "bin/cli.js",
   "bin": {
@@ -29,4 +29,4 @@
     "fs-extra": "^11.1.0",
     "inquirer": "^8.2.5"
   }
-}   
+}
