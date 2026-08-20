@@ -8,133 +8,153 @@ const fs = require('fs-extra');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const version= '1.0.0';
+const version = '1.0.0';
 
 program
-    .version(version)
-    .description('Create a new Express.js backend application')
-    .argument('<project-name>', 'Name of the project')
-    .action(async (projectName) => {
-        try{
-            console.log(chalk.blue(`Creating a new Express.js backend application: ${projectName}`));
+  .version(version)
+  .description('Create a new Express.js backend application')
+  .argument('<project-name>', 'Name of the project')
+  .action(async (projectName) => {
+    try {
+      console.log(chalk.blue(`Creating a new Express.js backend application: ${projectName}`));
 
-            const answers = await inquirer.prompt([
-                {
-                    type: 'confirm',
-                    name: 'useAuth',
-                    message: 'Include JWT authentication?',
-                    default: true
-                },
-                {
-                    type:'confirm',
-                    name: 'useLogging',
-                    message: 'Include logging middleware?',
-                    default: true
-                },
-                {
-                    type: 'confirm',
-                    name: 'useValidation',
-                    message: 'Include input validation?',
-                    default: true
-                },
-                {
-                    type: 'confirm',
-                    name: 'installDeps',
-                    message: 'Install dependencies now?',
-                    default: true
-                }
-            ]);
-
-            const projectPath = path.resolve(process.cwd(), projectName);
-
-            if (fs.existsSync(projectPath)) {
-                console.log(chalk.red(`Error: Directory ${projectName} already exists.`));
-                process.exit(1);
-            }
-
-            console.log(chalk.blue(`Creating project in ${projectPath}\n`));
-            fs.ensureDirSync(projectPath);
-
-            createFolderStructure(projectPath);
-            createConfigFiles(projectPath, answers);
-            createMiddlewareFiles(projectPath, answers);
-            createRouteFiles(projectPath, answers);
-
-            console.log(chalk.cyan(' Initializing git repository...'));
-            execSync('git init', { cwd: projectPath });
-
-            if (answers.installDeps) {
-                console.log(chalk.cyan(' Installing dependencies...\n'));
-                execSync('npm install', { cwd: projectPath, stdio: 'inherit' });
-            }
-
-            console.log(chalk.green.bold('\n Project created successfully!\n'));
-            console.log(chalk.cyan('Next steps:'));
-            console.log(chalk.white(`  cd ${projectName}`));
-            console.log(chalk.white('  cp .env.example .env'));
-            console.log(chalk.white('  npm start\n'));
-        }catch (error) {
-            console.error(chalk.red('\n Error creating project:'), error.message);
-            process.exit(1);
+      const answers = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'useAuth',
+          message: 'Include JWT authentication?',
+          default: true
+        },
+        {
+          type: 'confirm',
+          name: 'useValidation',
+          message: 'Include input validation?',
+          default: true
+        },
+        {
+          type: 'confirm',
+          name: 'useRateLimit',
+          message: 'Include rate limiting?',
+          default: true
+        },
+        {
+          type: 'confirm',
+          name: 'installDeps',
+          message: 'Install dependencies now?',
+          default: true
         }
-    });
+      ]);
+
+
+
+
+
+
+
+      const projectPath = path.resolve(process.cwd(), projectName);
+
+      if (fs.existsSync(projectPath)) {
+        console.log(chalk.red(`Error: Directory ${projectName} already exists.`));
+        process.exit(1);
+      }
+
+      console.log(chalk.blue(`Creating project in ${projectPath}\n`));
+      fs.ensureDirSync(projectPath);
+
+      createFolderStructure(projectPath);
+      createConfigFiles(projectPath, answers);
+      createMiddlewareFiles(projectPath, answers);
+      createRouteFiles(projectPath, answers);
+
+      console.log(chalk.cyan(' Initializing git repository...'));
+      execSync('git init', { cwd: projectPath });
+
+      if (answers.installDeps) {
+        console.log(chalk.cyan(' Installing dependencies...\n'));
+        execSync('npm install', { cwd: projectPath, stdio: 'inherit' });
+      }
+
+      console.log(chalk.green.bold('\n Project created successfully!\n'));
+      console.log(chalk.cyan('Next steps:'));
+      console.log(chalk.white(`  cd ${projectName}`));
+      console.log(chalk.white('  cp .env.example .env'));
+      console.log(chalk.white('  npm start\n'));
+    } catch (error) {
+      console.error(chalk.red('\n Error creating project:'), error.message);
+      process.exit(1);
+    }
+  });
 
 program.parse();
 
-const createFolderStructure=(projectPath) =>{
-    const folders=[
-        'src/config',
-        'src/middleware',
-        'src/routes',
-        'src/controllers',
-        'src/models',
-        'src/utils',
-        'src/validation'
-    ];
 
-    folders.forEach(folder => {
-        fs.ensureDirSync(path.join(projectPath, folder)); 
-    });
-    
-    console.log(chalk.green(' Folder structure created'));
+
+
+
+const createFolderStructure = (projectPath) => {
+  const folders = [
+    'src/config',
+    'src/middleware',
+    'src/routes',
+    'src/controllers',
+    'src/models',
+    'src/utils',
+    'src/validation'
+  ];
+
+  folders.forEach(folder => {
+    fs.ensureDirSync(path.join(projectPath, folder));
+  });
+
+  console.log(chalk.green(' Folder structure created'));
 
 }
 
 
-const createConfigFiles= (projectPath,answers) =>{
-    const packageJson={
-        name: path.basename(projectPath),
-        version: '1.0.0',
-        main: 'src/server.js',
-        scripts: {
-            start: 'node src/server.js',
-            dev: 'nodemon src/server.js',
-            test: 'jest'
-        },
-        keywords: ['express', 'nodejs', 'backend'],
-        author: '',
-        license: 'MIT',
-        dependencies: {
-            express: '^4.18.2',
-            mongoose: '^7.0.0',
-            dotenv: '^16.0.3',
-            cors: '^2.8.5',
-            'express-rate-limit': '^6.7.0',
-            ...(answers.useAuth && { jsonwebtoken: '^9.0.0' }),
-            ...(answers.useValidation && { joi: '^17.9.0' })
-        },
-        devDependencies: {
-            nodemon: '^2.0.22',
-        }
 
-    };
 
-    fs.writeFileSync(
-        path.join(projectPath, 'package.json'),
-        JSON.stringify(packageJson, null, 2)
-    );
 
-    const env = `# Server Configuration
+
+const createConfigFiles = (projectPath, answers) => {
+  const packageJson = {
+    name: path.basename(projectPath),
+    version: '1.0.0',
+    main: 'src/server.js',
+    scripts: {
+      start: 'node src/server.js',
+      dev: 'nodemon src/server.js',
+      test: 'jest'
+    },
+    keywords: ['express', 'nodejs', 'backend'],
+    author: '',
+    license: 'MIT',
+    dependencies: {
+      express: '^4.18.2',
+      mongoose: '^7.0.0',
+      dotenv: '^16.0.3',
+      cors: '^2.8.5',
+      ...(answers.useAuth && { jsonwebtoken: '^9.0.0' }),
+      ...(answers.useValidation && { joi: '^17.9.0' }),
+      ...(answers.useRateLimit && { 'express-rate-limit': '^6.7.0' }),
+
+    },
+    devDependencies: {
+      nodemon: '^2.0.22',
+    }
+
+  };
+
+  fs.writeFileSync(
+    path.join(projectPath, 'package.json'),
+    JSON.stringify(packageJson, null, 2)
+  );
+
+
+
+
+
+
+  const env = `# Server Configuration
 PORT=5000
 NODE_ENV=development
 
@@ -158,10 +178,12 @@ CORS_ORIGIN=http://localhost:3000
 LOG_LEVEL=debug
 `;
 
-    fs.writeFileSync(path.join(projectPath, '.env.example'), env);
+  fs.writeFileSync(path.join(projectPath, '.env.example'), env);
 
 
-    const gitignore = `node_modules/
+
+
+  const gitignore = `node_modules/
 .env
 .env.local
 .env.*.local
@@ -175,12 +197,14 @@ yarn-debug.log*
 .vscode/
 `;
 
-    fs.writeFileSync(path.join(projectPath, '.gitignore'), gitignore);
+  fs.writeFileSync(path.join(projectPath, '.gitignore'), gitignore);
 
-    console.log(chalk.green(' Config files created'));
+  console.log(chalk.green(' Config files created'));
 
 
 };
+
+
 
 
 
@@ -223,15 +247,16 @@ const errorMiddleware = (err, req, res, next) => {
 module.exports = { errorMiddleware, ErrorHandler };
 `;
 
-    fs.writeFileSync(
-        path.join(projectPath, 'src/middleware/errorHandler.js'),
-        errorHandler
-    );
+  fs.writeFileSync(
+    path.join(projectPath, 'src/middleware/errorHandler.js'),
+    errorHandler
+  );
 
 
 
 
-const logger = `// Simple logging middleware
+
+  const logger = `// Simple logging middleware
 const loggerMiddleware = (req, res, next) => {
   const start = Date.now();
   
@@ -248,19 +273,24 @@ const loggerMiddleware = (req, res, next) => {
 module.exports = loggerMiddleware;
 `;
 
-    fs.writeFileSync(
-        path.join(projectPath, 'src/middleware/logger.js'),
-        logger
-    );
+  fs.writeFileSync(
+    path.join(projectPath, 'src/middleware/logger.js'),
+    logger
+  );
 
 
 
-const rateLimiter  = `const ratelimit= require('express-rate-limit');
+
+
+
+
+  if (answers.useRateLimit) {
+    const rateLimiter = `const ratelimit= require('express-rate-limit');
 
 const limiter=ratelimit({
     windowMs: 15 * 60 * 1000, 
     max: 100,
-    message: 'Too many requests from this IP, please try again after 15 minutes'
+    message: 'Too many requests from this IP, please try again after 15 minutes',
     standardHeaders: true,
     legacyHeaders: false,
 });
@@ -271,13 +301,19 @@ module.exports=limiter;
 `;
 
     fs.writeFileSync(
-        path.join(projectPath, 'src/middleware/rateLimiter.js'),
-        rateLimiter
+      path.join(projectPath, 'src/middleware/rateLimiter.js'),
+      rateLimiter
     );
 
+  }
 
-if (answers.useAuth) {
-const auth = `const jwt = require('jsonwebtoken');
+
+
+
+
+
+  if (answers.useAuth) {
+    const auth = `const jwt = require('jsonwebtoken');
 const { ErrorHandler } = require('./errorHandler');
 
 const authenticateToken = (req, res, next) => {
@@ -300,15 +336,16 @@ module.exports = authenticateToken;
 `;
 
     fs.writeFileSync(
-        path.join(projectPath, 'src/middleware/auth.js'),
-        auth
+      path.join(projectPath, 'src/middleware/auth.js'),
+      auth
     );
   }
 
 
 
-if (answers.useValidation) {
-const validation = `const Joi = require('joi');
+
+  if (answers.useValidation) {
+    const validation = `const Joi = require('joi');
 
 const validateRequest = (schema) => {
   return (req, res, next) => {
@@ -334,8 +371,8 @@ module.exports = validateRequest;
 `;
 
     fs.writeFileSync(
-        path.join(projectPath, 'src/middleware/validation.js'),
-        validation
+      path.join(projectPath, 'src/middleware/validation.js'),
+      validation
     );
   }
 
@@ -365,14 +402,16 @@ router.get('/protected', authenticateToken, (req, res) => {
 
 module.exports = router;
 `;
-    fs.writeFileSync(
-        path.join(projectPath, 'src/routes/index.js'),
-        routes
-    );
+  fs.writeFileSync(
+    path.join(projectPath, 'src/routes/index.js'),
+    routes
+  );
 
- 
 
-const dbConfig = `const mongoose = require('mongoose');
+
+
+
+  const dbConfig = `const mongoose = require('mongoose');
 const dns = require('dns');
 
 // Set DNS servers
@@ -406,15 +445,16 @@ const connectDB = async () => {
 module.exports = connectDB;
 `;
 
-    fs.writeFileSync(
-        path.join(projectPath, 'src/config/db.js'),
-        dbConfig
-    );
+  fs.writeFileSync(
+    path.join(projectPath, 'src/config/db.js'),
+    dbConfig
+  );
 
 
 
 
-const server = `require('dotenv').config();
+
+  const server = `require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
@@ -423,7 +463,7 @@ const loggerMiddleware = require('./middleware/logger');
 const { errorMiddleware } = require('./middleware/errorHandler');
 
 const app = express();
-const limiter = require('./middleware/rateLimiter');
+${answers.useRateLimit ? "const limiter = require('./middleware/rateLimiter');" : ''}
 const PORT = process.env.PORT || 5000;
 
 // Connect to MongoDB
@@ -437,7 +477,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(loggerMiddleware);
-app.use(limiter);
+${answers.useRateLimit ? 'app.use(limiter);' : ''}
 
 
 // Routes
