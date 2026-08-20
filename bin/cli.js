@@ -119,6 +119,7 @@ const createConfigFiles= (projectPath,answers) =>{
             mongoose: '^7.0.0',
             dotenv: '^16.0.3',
             cors: '^2.8.5',
+            'express-rate-limit': '^6.7.0',
             ...(answers.useAuth && { jsonwebtoken: '^9.0.0' }),
             ...(answers.useValidation && { joi: '^17.9.0' })
         },
@@ -228,7 +229,9 @@ module.exports = { errorMiddleware, ErrorHandler };
     );
 
 
-    const logger = `// Simple logging middleware
+
+
+const logger = `// Simple logging middleware
 const loggerMiddleware = (req, res, next) => {
   const start = Date.now();
   
@@ -250,8 +253,31 @@ module.exports = loggerMiddleware;
         logger
     );
 
-    if (answers.useAuth) {
-    const auth = `const jwt = require('jsonwebtoken');
+
+
+const rateLimiter  = `const ratelimit= require('express-rate-limit');
+
+const limiter=ratelimit({
+    windowMs: 15 * 60 * 1000, 
+    max: 100,
+    message: 'Too many requests from this IP, please try again after 15 minutes'
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+module.exports=limiter;
+
+
+`;
+
+    fs.writeFileSync(
+        path.join(projectPath, 'src/middleware/rateLimiter.js'),
+        rateLimiter
+    );
+
+
+if (answers.useAuth) {
+const auth = `const jwt = require('jsonwebtoken');
 const { ErrorHandler } = require('./errorHandler');
 
 const authenticateToken = (req, res, next) => {
@@ -279,8 +305,10 @@ module.exports = authenticateToken;
     );
   }
 
-  if (answers.useValidation) {
-    const validation = `const Joi = require('joi');
+
+
+if (answers.useValidation) {
+const validation = `const Joi = require('joi');
 
 const validateRequest = (schema) => {
   return (req, res, next) => {
@@ -315,8 +343,11 @@ module.exports = validateRequest;
 }
 
 
+
+
+
 const createRouteFiles = (projectPath, answers) => {
-    const routes = `const express = require('express');
+  const routes = `const express = require('express');
 const router = express.Router();
 ${answers.useAuth ? "const authenticateToken = require('../middleware/auth');" : ''}
 
@@ -380,7 +411,10 @@ module.exports = connectDB;
         dbConfig
     );
 
-    const server = `require('dotenv').config();
+
+
+
+const server = `require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
@@ -389,6 +423,7 @@ const loggerMiddleware = require('./middleware/logger');
 const { errorMiddleware } = require('./middleware/errorHandler');
 
 const app = express();
+const limiter = require('./middleware/rateLimiter');
 const PORT = process.env.PORT || 5000;
 
 // Connect to MongoDB
@@ -402,6 +437,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(loggerMiddleware);
+app.use(limiter);
 
 
 // Routes
