@@ -538,7 +538,7 @@ function createUserModel(projectPath) {
         unique: true,
         lowercase: true,
         trim: true,
-        match: [/.+@.+\..+/, 'Please fill a valid email address'],
+        match: [/.+@.+\\..+/, 'Please fill a valid email address'],
       },
       password: {
         type: String,
