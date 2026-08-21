@@ -65,6 +65,9 @@ program
       createConfigFiles(projectPath, answers);
       createMiddlewareFiles(projectPath, answers);
       createRouteFiles(projectPath, answers);
+      if (answers.useAuth) {
+        createUserModel(projectPath);
+      }
 
       console.log(chalk.cyan(' Initializing git repository...'));
       execSync('git init', { cwd: projectPath });
@@ -133,7 +136,7 @@ const createConfigFiles = (projectPath, answers) => {
       mongoose: '^7.0.0',
       dotenv: '^16.0.3',
       cors: '^2.8.5',
-      ...(answers.useAuth && { jsonwebtoken: '^9.0.0' }),
+      ...(answers.useAuth && { jsonwebtoken: '^9.0.0' , bcryptjs: '^2.4.3'}),
       ...(answers.useValidation && { joi: '^17.9.0' }),
       ...(answers.useRateLimit && { 'express-rate-limit': '^6.7.0' }),
 
@@ -512,4 +515,66 @@ process.on('unhandledRejection', (err) => {
   );
 
   console.log(chalk.green('Route and config files created'));
+}
+
+
+
+
+
+function createUserModel(projectPath) {
+  const userModel = `const mongoose = require('mongoose');
+  const bcrypt = require('bcryptjs');
+  
+  const userSchema = new mongoose.Schema(
+    {
+      name:{
+        type: String,
+        required: [true, 'Name is required'],
+        trim: true,
+      },
+      email: {
+        type: String,
+        required: [true, 'Email is required'],
+        unique: true,
+        lowercase: true,
+        trim: true,
+        match: [/.+@.+\..+/, 'Please fill a valid email address'],
+      },
+      password: {
+        type: String,
+        required: [true, 'Password is required'],
+        minlength: [6, 'Password must be at least 6 characters long'],
+        select: false
+      }, 
+    },
+    { timestamps: true }
+      
+  );
+
+
+  //hash password before saving
+  userSchema.pre('save', async function (next) {
+    if (!this.isModified('password')) {
+      return next();
+    }
+    this.password = await bcrypt.hash(this.password,10);
+    next();
+  });
+
+
+  //compare password method
+  userSchema.methods.comparePassword = async function(candidatePassword) {
+    return await bcrypt.compare(candidatePassword, this.password);
+  };
+
+  module.exports = mongoose.model('User', userSchema);
+  
+  `;
+
+    fs.writeFileSync(
+      path.join(projectPath, 'src/models/User.js'),
+      userModel
+    )
+
+    console.log(chalk.green('User model created'));
 }
