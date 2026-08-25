@@ -48,6 +48,12 @@ program
           name: 'installDeps',
           message: 'Install dependencies now?',
           default: true
+        },
+        {
+          type: 'confirm',
+          name: 'useAxios',
+          message: 'Include axios (for external API calls)?',
+          default: true
         }
       ]);
 
@@ -73,6 +79,9 @@ program
       createRouteFiles(projectPath, answers);
       if (answers.useAuth) {
         createUserModel(projectPath);
+      }
+      if(answers.useAxios){
+        createAxiosUtil(projectPath);
       }
 
       console.log(chalk.cyan(' Initializing git repository...'));
@@ -149,6 +158,7 @@ const createConfigFiles = (projectPath, answers) => {
       ...(answers.useValidation && { joi: '^17.9.0' }),
       ...(answers.useRateLimit && { 'express-rate-limit': '^6.7.0' }),
       ...(answers.useFileUpload && { multer: '^2.0.0' }),
+      ...(answers.useAxios && { axios: '^1.6.0' }),
 
     },
     devDependencies: {
@@ -664,4 +674,76 @@ function createUserModel(projectPath) {
     )
 
     console.log(chalk.green('User model created'));
+}
+
+
+
+
+function createAxiosUtil(projectPath){
+  const axiosUtil = ` const axios = require('axios');
+
+  //create an axios instance with default config
+  const axiosInstance = axios.create({
+    baseURL: process.env.API_BASE_URL || '',
+    timeout: 10000,
+    headers:{
+      'Content-Type' : 'application/json',
+    }
+  });
+
+  //request interceptor
+  axiosInstance.interceptors.request.use(
+    (config) =>{
+      console.log(\`Making request to: \${config.url}\`);;
+      return config;
+    },
+    (error) => Promise.reject(error)
+  );
+
+  //response interceptor
+  axiosInstance.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      console.error('API call error: ', error.response ? error.response.data : error.message);
+      return Promise.reject(error);
+    }
+  );
+
+  //fetch data function
+  const fetchData = async (url) => {
+    try{
+      const response = await axiosInstance.get(url);
+      return response.data;
+    }catch(error){
+      throw new Error(\`Failed to fetch data: \${error.message}\`);
+    }
+  };
+
+  //post data function
+  const postData = async (url, data) => {
+    try{
+      const response = await axiosInstance.post(url, data);
+      return response.data;
+    }catch(error){
+      throw new Error(\`Failed to post data: \${error.message}\`);
+    }
+  };
+
+  module.exports = {
+    axiosInstance,
+    fetchData,
+    postData,
+  };
+  
+  
+  
+  `;
+
+
+  fs.writeFileSync(
+    path.join(projectPath, 'src/utils/axiosUtil.js'),
+    axiosUtil
+  );
+
+  console.log(chalk.green('Axios utility created'));
 }
