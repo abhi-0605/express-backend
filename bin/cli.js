@@ -39,6 +39,12 @@ program
         },
         {
           type: 'confirm',
+          name: 'useFileUpload',
+          message: 'Include file upload support (multer)?',
+          default: true
+        },
+        {
+          type: 'confirm',
           name: 'installDeps',
           message: 'Install dependencies now?',
           default: true
@@ -61,7 +67,7 @@ program
       console.log(chalk.blue(`Creating project in ${projectPath}\n`));
       fs.ensureDirSync(projectPath);
 
-      createFolderStructure(projectPath);
+      createFolderStructure(projectPath, answers);
       createConfigFiles(projectPath, answers);
       createMiddlewareFiles(projectPath, answers);
       createRouteFiles(projectPath, answers);
@@ -94,7 +100,7 @@ program.parse();
 
 
 
-const createFolderStructure = (projectPath) => {
+const createFolderStructure = (projectPath, answers) => {
   const folders = [
     'src/config',
     'src/middleware',
@@ -105,12 +111,15 @@ const createFolderStructure = (projectPath) => {
     'src/validation'
   ];
 
+  if (answers.useFileUpload) {
+    folders.push('uploads');
+  }
+
   folders.forEach(folder => {
     fs.ensureDirSync(path.join(projectPath, folder));
   });
 
   console.log(chalk.green(' Folder structure created'));
-
 }
 
 
@@ -139,6 +148,7 @@ const createConfigFiles = (projectPath, answers) => {
       ...(answers.useAuth && { jsonwebtoken: '^9.0.0' , bcryptjs: '^2.4.3'}),
       ...(answers.useValidation && { joi: '^17.9.0' }),
       ...(answers.useRateLimit && { 'express-rate-limit': '^6.7.0' }),
+      ...(answers.useFileUpload && { multer: '^2.0.0' }),
 
     },
     devDependencies: {
@@ -185,7 +195,6 @@ LOG_LEVEL=debug
 
 
 
-
   const gitignore = `node_modules/
 .env
 .env.local
@@ -198,10 +207,14 @@ npm-debug.log*
 yarn-debug.log*
 .idea/
 .vscode/
+${answers.useFileUpload ? 'uploads/*\n!uploads/.gitkeep' : ''}
 `;
 
   fs.writeFileSync(path.join(projectPath, '.gitignore'), gitignore);
 
+  if(answers.useFileUpload){
+    fs.writeFileSync(path.join(projectPath, 'uploads/.gitkeep'), '');
+  }
   console.log(chalk.green(' Config files created'));
 
 
@@ -312,6 +325,57 @@ module.exports=limiter;
 
 
 
+  if(answers.useFileUpload){
+    const multerMiddleware= ` const multer = require('multer');
+    const path = require('path');
+
+    // Set storage engine
+    const storage = multer.diskStorage({
+      destination: function (req,file ,cb){
+        cb(null, 'uploads/');
+      },
+      filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random()*1E9);
+        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname))
+      }
+       
+  });
+
+
+  //file filter
+  const fileFilter = (req, file, cb) =>{
+    const allowedTypes = /jpeg|jpg|png|gif/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype  = allowedTypes.test(file.mimetype);
+
+    if(extname && mimetype){
+      return cb(null,true);
+    }else{
+      cb(new Error('Error: Images Only!'));
+    }
+  };
+
+  const upload = multer({
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    fileFilter: fileFilter
+  
+  });
+
+  module.exports = upload;
+    
+    
+    `;
+
+
+    fs.writeFileSync(
+      path.join(projectPath, 'src/middleware/upload.js'),
+      multerMiddleware
+    )
+  }
+
+
+
 
 
 
@@ -390,6 +454,7 @@ const createRouteFiles = (projectPath, answers) => {
   const routes = `const express = require('express');
 const router = express.Router();
 ${answers.useAuth ? "const authenticateToken = require('../middleware/auth');" : ''}
+${answers.useFileUpload ? "const upload = require('../middleware/upload');" : ''}
 
 // Public routes
 router.get('/health', (req, res) => {
@@ -402,6 +467,28 @@ router.get('/protected', authenticateToken, (req, res) => {
   res.json({ message: 'This is a protected route', user: req.user });
 });
 ` : ''}
+
+${answers.useFileUpload ? `
+  // File upload route
+  router.post('/upload', upload.single('file'), (req,res) =>{
+    if(!req.file){
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      })
+    }
+    res.json({
+      success: true,
+      message: 'File uploaded successfully',
+      file: req.file
+    });
+    
+  });
+  
+  
+  `: ''}
+
+
 
 module.exports = router;
 `;
