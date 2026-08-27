@@ -34,6 +34,12 @@ program
         },
         {
           type: 'confirm',
+          name: 'useDNSFix',
+          message: 'Use custom DNS (fixes MongoDB connection issues on some networks)?',
+          default: true
+        },
+        {
+          type: 'confirm',
           name: 'useRateLimit',
           message: 'Include rate limiting?',
           default: true
@@ -186,11 +192,7 @@ NODE_ENV=development
 # MongoDB Configuration
 MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/myappdb
 DB_NAME=myapp
-
-# DNS Configuration
-DNS_SERVERS=8.8.8.8,8.8.4.4
-PRIMARY_DNS=8.8.8.8
-SECONDARY_DNS=8.8.4.4
+${answers.useDNSFix ? '\n# DNS Configuration (for MongoDB connection issues)\nDNS_SERVERS=8.8.8.8,8.8.4.4' : ''}
 
 # JWT Configuration
 JWT_SECRET=your-secret-key-change-this-in-production
@@ -201,6 +203,7 @@ CORS_ORIGIN=http://localhost:3000
 
 # Logging
 LOG_LEVEL=debug
+${answers.useAxios ? '\n# External API\nAPI_BASE_URL=' : ''}
 `;
 
   fs.writeFileSync(path.join(projectPath, '.env.example'), env);
@@ -522,34 +525,23 @@ module.exports = router;
 
 
   const dbConfig = `const mongoose = require('mongoose');
-const dns = require('dns');
+${answers.useDNSFix ? "const dns = require('dns');" : ''}
 
-// Set DNS servers
+${answers.useDNSFix ? `// Set custom DNS servers (fixes connection issues on some networks)
 const dnsServers = (process.env.DNS_SERVERS || '8.8.8.8,8.8.4.4').split(',');
 dns.setServers(dnsServers);
+` : ''}
 
 const connectDB = async () => {
-  try {
-    console.log(\`📡 Using DNS servers: \${dnsServers.join(', ')}\`);
-    
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-    });
+  ${answers.useDNSFix ? "console.log(`Using DNS servers: ${dnsServers.join(', ')}`);" : ''}
+  
+  const conn = await mongoose.connect(process.env.MONGODB_URI, {
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+  });
 
-    console.log(\`MongoDB Connected: \${conn.connection.host}\`);
-    return conn;
-  } catch (error) {
-    console.error(' MongoDB Connection Error:', error.message);
-    
-    if (process.env.NODE_ENV === 'production') {
-      process.exit(1);
-    } else {
-      console.warn('⚠ Warning: Running without MongoDB connection');
-    }
-  }
+  console.log(\`MongoDB Connected: \${conn.connection.host}\`);
+  return conn;
 };
 
 module.exports = connectDB;
@@ -576,16 +568,15 @@ const app = express();
 ${answers.useRateLimit ? "const limiter = require('./middleware/rateLimiter');" : ''}
 const PORT = process.env.PORT || 5000;
 
-// Connect to MongoDB
-connectDB();
+
 
 // Middleware
 app.use(cors({
   origin: process.env.CORS_ORIGIN || '*'
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({limit: '10kb'}));
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(loggerMiddleware);
 ${answers.useRateLimit ? 'app.use(limiter);' : ''}
 
@@ -604,11 +595,22 @@ app.get('/', (req, res) => {
 app.use(errorMiddleware);
 
 
-// Start Server
-app.listen(PORT, () => {
-  console.log(\` Server running on port \${PORT}\`);
-  console.log(\`Environment: \${process.env.NODE_ENV || 'development'}\`);
-});
+//connect to MongoDB
+const startServer = async() =>{
+    try{
+      await connectDB();
+      app.listen(PORT, () =>{
+        console.log(\` Server running on port \${PORT}\`);
+        console.log(\`Environment: \${process.env.NODE_ENV || 'development'}\`);
+      });
+    }catch(error){
+      console.error('Failed to start server:', error.message);
+      process.exit(1);
+    }
+  }
+
+
+startServer();
 
 process.on('unhandledRejection', (err) => {
   console.error('Unhandled Rejection:', err);
