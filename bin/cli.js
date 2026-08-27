@@ -7,8 +7,9 @@ const inquirer = require('inquirer');
 const fs = require('fs-extra');
 const path = require('path');
 const { execSync } = require('child_process');
+const packageJson = require('../package.json');
 
-const version = '1.0.0';
+const version = packageJson.version;
 
 program
   .version(version)
@@ -82,6 +83,7 @@ program
       }
       if(answers.useAxios){
         createAxiosUtil(projectPath);
+        createAuthController(projectPath);
       }
 
       console.log(chalk.cyan(' Initializing git repository...'));
@@ -464,12 +466,20 @@ const createRouteFiles = (projectPath, answers) => {
   const routes = `const express = require('express');
 const router = express.Router();
 ${answers.useAuth ? "const authenticateToken = require('../middleware/auth');" : ''}
+${answers.useAuth ? "const {register,login} = require('../controllers/authController');" : ''}
 ${answers.useFileUpload ? "const upload = require('../middleware/upload');" : ''}
 
 // Public routes
 router.get('/health', (req, res) => {
   res.json({ status: 'API is running' });
 });
+
+${answers.useAuth? `
+  // Auth routes
+  // Register and Login routes
+  router.post('/auth/register', register);
+  router.post('/auth/login', login);
+` : ''}
 
 ${answers.useAuth ? `
 // Protected routes
@@ -676,6 +686,101 @@ function createUserModel(projectPath) {
     console.log(chalk.green('User model created'));
 }
 
+
+
+
+function createAuthController(projectPath) {
+  const authController = `const jwt= require('jsonwebtoken');
+  const User=require('../models/User');
+  const { ErrorHandler } = require('../middleware/errorHandler');
+
+  //generate JWT token
+  const generateToken = (userId) => {
+    return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRE || '7d'
+    });
+  };
+  
+
+  //register user
+  const register= async(req,res,next) =>{
+    try{
+      const {name,email,password}=req.body;
+
+      const existingUser= await User.findOne({email});
+      if(existingUser){
+        return next(new ErrorHandler('Email already Registered',400));
+      }
+
+      const user= await User.create({name,email,password});
+      const tocken= generateToken(user._id);
+
+      res.status(201).json({
+        success:true,
+        message:'User registered successfully',
+        token,
+        user:{
+          id:user._id,
+          name:user.name,
+          email:user.email
+        }
+      });
+    }catch(error){
+      next(error);
+    }
+  };
+
+
+
+  //login user
+  const login =async(req,res,next) =>{
+    try{
+      const {email,password}=req.body;
+
+      const user=await User.findOne({email}).select('+password');
+      if(!user){
+        return next(new ErrorHandler('Invalid email or password',401));
+      }
+
+      const isMatch= await user.comparePassword(password);
+      if(!isMatch){
+        return next(new ErrorHandler('Invalid email or password',401));
+      }
+
+      const token=generateToken(user._id);
+
+      res.status(200).json({
+        success:true,
+        message:'User logged in successfully',
+        token,
+        user:{
+          id:user._id,
+          name:user.name,
+          email: user.email
+        }
+      });
+    }catch(error){
+      next(error);
+    }
+  }
+  
+  
+  module.exports = {
+    register,
+    login
+  };
+  
+  `;
+
+
+
+  fs.writeFileSync(
+    path.join(projectPath, 'src/controllers/authController.js'),
+    authController
+  );
+
+  console.log(chalk.green('Auth controller created'));
+}
 
 
 
