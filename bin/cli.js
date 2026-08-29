@@ -320,7 +320,18 @@ const limiter=ratelimit({
     legacyHeaders: false,
 });
 
-module.exports=limiter;
+${answers.useAuth? `// stricter rate limit for auth routes(prevent brute force attacks)
+  const authLimiter=ratelimit({
+  windowMs: 15 * 60 * 1000,
+  max:5,
+  message: 'Too many login attempts from this IP, please try again after 15 minutes',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+  
+  `:''}
+
+module.exports={limiter${answers.useAuth? ', authLimiter' : ''}};
 
 
 `;
@@ -466,7 +477,9 @@ const createRouteFiles = (projectPath, answers) => {
 const router = express.Router();
 ${answers.useAuth ? "const authenticateToken = require('../middleware/auth');" : ''}
 ${answers.useAuth ? "const {register,login} = require('../controllers/authController');" : ''}
+${(answers.useRateLimit && answers.useAuth) ? "const { authLimiter } = require('../middleware/rateLimiter');" : ''}
 ${answers.useFileUpload ? "const upload = require('../middleware/upload');" : ''}
+
 
 // Public routes
 router.get('/health', (req, res) => {
@@ -476,8 +489,8 @@ router.get('/health', (req, res) => {
 ${answers.useAuth? `
   // Auth routes
   // Register and Login routes
-  router.post('/auth/register', register);
-  router.post('/auth/login', login);
+  router.post('/auth/register', ${answers.useRateLimit ? 'authLimiter, ' : ''} register);
+  router.post('/auth/login', ${answers.useRateLimit ? 'authLimiter, ' : ''} login);
 ` : ''}
 
 ${answers.useAuth ? `
@@ -562,7 +575,7 @@ const loggerMiddleware = require('./middleware/logger');
 const { errorMiddleware } = require('./middleware/errorHandler');
 
 const app = express();
-${answers.useRateLimit ? "const limiter = require('./middleware/rateLimiter');" : ''}
+${answers.useRateLimit ? "const { limiter } = require('./middleware/rateLimiter');" : ''}
 
 const PORT = process.env.PORT || 5000;
 
