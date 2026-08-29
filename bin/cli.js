@@ -400,11 +400,13 @@ module.exports=limiter;
 const { ErrorHandler } = require('./errorHandler');
 
 const authenticateToken = (req, res, next) => {
-  const token = req.headers['authorization']?.split(' ')[1];
+  const authHeader = req.headers.authorization;
 
-  if (!token) {
-    return next(new ErrorHandler('Access token is missing', 401));
+  if(!authHeader || !authHeader.startsWith('Bearer ')){
+    return next(new ErrorHandler('Authorization header is missing or malformed', 401));
   }
+  const token = authHeader.split(' ')[1];
+
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
