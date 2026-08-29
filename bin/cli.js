@@ -198,6 +198,7 @@ ${answers.useDNSFix ? '\n# DNS Configuration (for MongoDB connection issues)\nDN
 # JWT Configuration
 JWT_SECRET=your-secret-key-change-this-in-production
 JWT_EXPIRE=7d
+${answers.useAuth ? 'BCRYPT_SALT_ROUNDS=10' : ''}
 
 # CORS
 CORS_ORIGIN=http://localhost:3000
@@ -672,7 +673,8 @@ function createUserModel(projectPath) {
     if (!this.isModified('password')) {
       return next();
     }
-    this.password = await bcrypt.hash(this.password,10);
+    const salt = Number(process.env.BCRYPT_SALT_ROUNDS || 10);
+    this.password = await bcrypt.hash(this.password,salt);
     next();
   });
 
@@ -721,7 +723,7 @@ function createAuthController(projectPath) {
       }
 
       const user= await User.create({name,email,password});
-      const tocken= generateToken(user._id);
+      const token= generateToken(user._id);
 
       res.status(201).json({
         success:true,
