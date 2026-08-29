@@ -162,6 +162,7 @@ const createConfigFiles = (projectPath, answers) => {
       mongoose: '^7.0.0',
       dotenv: '^16.0.3',
       cors: '^2.8.5',
+      helmet: '^7.1.0',
       ...(answers.useAuth && { jsonwebtoken: '^9.0.0' , bcryptjs: '^2.4.3'}),
       ...(answers.useValidation && { joi: '^17.9.0' }),
       ...(answers.useRateLimit && { 'express-rate-limit': '^6.7.0' }),
@@ -558,6 +559,7 @@ module.exports = connectDB;
 
   const server = `require('dotenv').config();
 const express = require('express');
+const helmet = require('helmet');
 const cors = require('cors');
 const connectDB = require('./config/db');
 const routes = require('./routes');
@@ -566,11 +568,13 @@ const { errorMiddleware } = require('./middleware/errorHandler');
 
 const app = express();
 ${answers.useRateLimit ? "const limiter = require('./middleware/rateLimiter');" : ''}
+
 const PORT = process.env.PORT || 5000;
 
 
 
 // Middleware
+app.use(helmet());
 app.use(cors({
   origin: process.env.CORS_ORIGIN || '*'
 }));
