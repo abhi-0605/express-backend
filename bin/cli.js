@@ -48,7 +48,7 @@ program
           type: 'confirm',
           name: 'useFileUpload',
           message: 'Include file upload support (multer)?',
-          default: true
+          default: false
         },
         {
           type: 'confirm',
@@ -260,15 +260,7 @@ const errorMiddleware = (err, req, res, next) => {
     err = new ErrorHandler(message, 400);
   }
 
-  if (err.name === 'JsonWebTokenError') {
-    const message = \`JSON Web Token is invalid, try again\`;
-    err = new ErrorHandler(message, 400);
-  }
-
-  if (err.name === 'TokenExpiredError') {
-    const message = \`JSON Web Token is expired, try again\`;
-    err = new ErrorHandler(message, 400);
-  }
+  
 
   res.status(err.statusCode).json({
     success: false,
