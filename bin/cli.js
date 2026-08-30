@@ -283,6 +283,9 @@ const errorMiddleware = (err, req, res, next) => {
     err = new ErrorHandler(message, 400);
   }
 
+  if(err.name === 'MulterError'){ 
+    err = new ErrorHandler(\`File upload error: \${err.message}\`, 400);
+  }
   
 
   res.status(err.statusCode).json({
@@ -643,26 +646,58 @@ ${answers.useAuth ? `// validation JWT secret before starting server
 ` : ''}
 
 
-//connect to MongoDB
-const startServer = async() =>{
-    try{
-      await connectDB(); 
-      app.listen(PORT, () =>{
-        console.log(\` Server running on port \${PORT}\`);
-        console.log(\`Environment: \${process.env.NODE_ENV || 'development'}\`);
-      });
-    }catch(error){
-      console.error('Failed to start server:', error.message);
-      process.exit(1);
-    }
+
+
+
+
+let serverInstance;
+
+const startServerWithShutdown = async () => {
+  try{
+    await connectDB();
+    serverInstance = app.listen(PORT, () => {
+      console.log(\` Server running on port \${PORT}\`);
+      console.log(\`Environment: \${process.env.NODE_ENV || 'development'}\`);
+    });
+
+  }catch(error){
+    console.error('Failed to start server:', error.message);
+    process.exit(1);
   }
+};
+   
+startServerWithShutdown();
+  
+// Graceful shutdown
+const gracefulShutdown = () => {
+  console.log('Received shutdown signal, closing server...');
+  if (serverInstance) {
+    serverInstance.close(() => {
+      console.log('Server closed');
+      process.exit(0);
+    });
+  }else{
+    process.exit(0);
+  }
+};
 
-startServer();
 
-process.on('unhandledRejection', (err) => {
+
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
+
+
+
+process.on('unhandledRejection', (err) =>{
   console.error('Unhandled Rejection:', err);
   process.exit(1);
+})
+
+process.on('uncaughtException', (err) =>{
+  console.error('Uncaught Exception:', err);
+  process.exit(1);
 });
+
 `;
 
   fs.writeFileSync(
