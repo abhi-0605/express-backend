@@ -88,6 +88,9 @@ program
         createUserModel(projectPath);
         createAuthController(projectPath);
       }
+      if(answers.useValidation && answers.useAuth){
+        createAuthValidation(projectPath);
+      }
       if(answers.useAxios){
         createAxiosUtil(projectPath);
       }
@@ -478,6 +481,8 @@ const router = express.Router();
 ${answers.useAuth ? "const authenticateToken = require('../middleware/auth');" : ''}
 ${answers.useAuth ? "const {register,login} = require('../controllers/authController');" : ''}
 ${(answers.useRateLimit && answers.useAuth) ? "const { authLimiter } = require('../middleware/rateLimiter');" : ''}
+${(answers.useAuth && answers.useValidation) ? "const validateRequest = require('../middleware/validation');" : ''}
+${(answers.useAuth && answers.useValidation) ? "const { registerSchema, loginSchema } = require('../validation/authValidation');" : ''}
 ${answers.useFileUpload ? "const upload = require('../middleware/upload');" : ''}
 
 
@@ -489,8 +494,8 @@ router.get('/health', (req, res) => {
 ${answers.useAuth? `
   // Auth routes
   // Register and Login routes
-  router.post('/auth/register', ${answers.useRateLimit ? 'authLimiter, ' : ''} register);
-  router.post('/auth/login', ${answers.useRateLimit ? 'authLimiter, ' : ''} login);
+  router.post('/auth/register', ${answers.useRateLimit ? 'authLimiter, ' : ''}${answers.useValidation ? 'validateRequest(registerSchema), ' : ''}register);
+  router.post('/auth/login', ${answers.useRateLimit ? 'authLimiter, ' : ''}${answers.useValidation ? 'validateRequest(loginSchema), ' : ''}login);
 ` : ''}
 
 ${answers.useAuth ? `
@@ -795,6 +800,39 @@ function createAuthController(projectPath) {
   );
 
   console.log(chalk.green('Auth controller created'));
+}
+
+
+
+
+
+function createAuthValidation(projectPath) {
+  const authValidation = `const Joi = require('joi');
+
+  const registerSchema = Joi.object({
+    name: Joi.string().min(2).max(50).required(),
+    email: Joi.string().email().required(),
+    password: Joi.string().min(6).required()
+  });
+
+  const loginSchema = Joi.object({
+    email: Joi.string().email().required(),
+    password: Joi.string().min(6).required()
+  });
+
+  module.exports = {
+    registerSchema,
+    loginSchema
+  };
+
+  `;
+
+  fs.writeFileSync(
+    path.join(projectPath, 'src/validation/authValidation.js'),
+    authValidation
+  );
+
+  console.log(chalk.green('Auth validation Schema created'));
 }
 
 
