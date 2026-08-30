@@ -200,7 +200,7 @@ JWT_SECRET=your-secret-key-change-this-in-production
 JWT_EXPIRE=7d
 ${answers.useAuth ? 'BCRYPT_SALT_ROUNDS=10' : ''}
 
-# CORS
+# CORS (set to your frontend URL; use a specific domain in production not *)
 CORS_ORIGIN=http://localhost:3000
 
 # Logging
