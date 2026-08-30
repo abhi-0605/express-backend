@@ -86,10 +86,10 @@ program
       createRouteFiles(projectPath, answers);
       if (answers.useAuth) {
         createUserModel(projectPath);
+        createAuthController(projectPath);
       }
       if(answers.useAxios){
         createAxiosUtil(projectPath);
-        createAuthController(projectPath);
       }
 
       console.log(chalk.cyan(' Initializing git repository...'));
