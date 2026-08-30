@@ -36,7 +36,7 @@ program
           type: 'confirm',
           name: 'useDNSFix',
           message: 'Use custom DNS (fixes MongoDB connection issues on some networks)?',
-          default: true
+          default: false
         },
         {
           type: 'confirm',
@@ -95,15 +95,35 @@ program
         createAxiosUtil(projectPath);
       }
 
-      console.log(chalk.cyan(' Initializing git repository...'));
-      execSync('git init', { cwd: projectPath });
-
-      if (answers.installDeps) {
-        console.log(chalk.cyan(' Installing dependencies...\n'));
-        execSync('npm install', { cwd: projectPath, stdio: 'inherit' });
+      try{
+        execSync('git --version', { stdio: 'ignore' });
+        console.log(chalk.green(' Initializing git repository...'));
+        execSync('git init', { cwd: projectPath });
+      } catch (error) {
+        console.error(chalk.red('Git not found. Skipping git initialization.'));
       }
 
+      let installFailed = false;
+      if (answers.installDeps) {
+        console.log(chalk.cyan(' Installing dependencies...\n'));
+        try{
+          execSync('npm install', { cwd: projectPath, stdio: 'inherit' });
+        } catch (error) {
+          installFailed = true;
+        }
+        
+      }
+
+
+
       console.log(chalk.green.bold('\n Project created successfully!\n'));
+
+
+      if(installFailed){
+        console.log(chalk.yellow('\n Dependency installation failed. Run this manually:'));
+        console.log(chalk.white(`  cd ${projectName}`));
+        console.log(chalk.white('  npm install\n'));
+      }
       console.log(chalk.cyan('Next steps:'));
       console.log(chalk.white(`  cd ${projectName}`));
       console.log(chalk.white('  cp .env.example .env'));
@@ -113,7 +133,7 @@ program
       process.exit(1);
     }
   });
-
+  
 program.parse();
 
 
@@ -355,7 +375,7 @@ module.exports={limiter${answers.useAuth? ', authLimiter' : ''}};
     // Set storage engine
     const storage = multer.diskStorage({
       destination: function (req,file ,cb){
-        cb(null, 'uploads/');
+        cb(null, path.join(process.cwd(), 'uploads'));
       },
       filename: function (req, file, cb) {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random()*1E9);
@@ -589,7 +609,7 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*'
+  origin: process.env.CORS_ORIGIN || 'http://localhost:3000'
 }));
 
 app.use(express.json({limit: '10kb'}));
@@ -611,11 +631,22 @@ app.get('/', (req, res) => {
 // Error handling middleware (must be last)
 app.use(errorMiddleware);
 
+${answers.useAuth ? `// validation JWT secret before starting server
+  if(!process.env.JWT_SECRET){
+    console.error('JWT_SECRET is required. Please set it before starting the server.');
+    process.exit(1);
+  }
+    if(process.env.JWT_SECRET === 'your-secret-key-change-this-in-production'){
+    console.warn('please change the default JWT_SECRET in .env file for production use');
+    process.exit(1);
+  }
+` : ''}
+
 
 //connect to MongoDB
 const startServer = async() =>{
     try{
-      await connectDB();
+      await connectDB(); 
       app.listen(PORT, () =>{
         console.log(\` Server running on port \${PORT}\`);
         console.log(\`Environment: \${process.env.NODE_ENV || 'development'}\`);
@@ -625,7 +656,6 @@ const startServer = async() =>{
       process.exit(1);
     }
   }
-
 
 startServer();
 
@@ -683,7 +713,10 @@ function createUserModel(projectPath) {
     if (!this.isModified('password')) {
       return next();
     }
-    const salt = Number(process.env.BCRYPT_SALT_ROUNDS || 10);
+    let salt = Number.parseInt(process.env.BCRYPT_SALT_ROUNDS || '10', 10);
+    if(!Number.isInteger(salt) || salt<10){
+      salt = 10;
+    }
     this.password = await bcrypt.hash(this.password,salt);
     next();
   });
